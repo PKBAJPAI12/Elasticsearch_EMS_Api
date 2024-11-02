@@ -1,6 +1,4 @@
-Certainly! Here’s how you can integrate the new functions into your existing README file, including sections for "Filter by Date of Joining" and "Patch Employee":
 
-```markdown
 # Employee Management API
 
 This Django application provides a RESTful API for managing employee data using Elasticsearch as the backend database. The API allows for searching, creating, and filtering employees based on various fields such as name, designation, gender, and age.
@@ -18,7 +16,7 @@ This Django application provides a RESTful API for managing employee data using 
 ### Clone the Repository
 ```bash
 git clone https://github.com/PKBAJPAI12/Elasticsearch_EMS_Api
-cd project
+cd myproject
 ```
 
 ### Install Dependencies
