@@ -5,6 +5,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .es_connection import es
+from datetime import datetime
 import json
 
 def get_employees(request):
@@ -106,6 +107,73 @@ def create_employee(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
+
+@csrf_exempt
+def patch_employee(request, employee_id):
+    if request.method == 'PATCH':
+        try:
+            # Parse the request body
+            data = json.loads(request.body)
+
+            if not employee_id:
+                return JsonResponse({"error": "Employee ID is required"}, status=400)
+
+            # Check if the employee exists
+            employee_exists = es.exists(index="employee_db", id=employee_id)
+
+            if not employee_exists:
+                return JsonResponse({"error": "Employee not found"}, status=404)
+
+            # Prepare the updated data dynamically
+            updated_fields = {}
+            if "designation" in data:
+                updated_fields["Designation"] = data.get("designation")
+            if "salary" in data:
+                updated_fields["Salary"] = data.get("salary")
+            if "first_name" in data:
+                updated_fields["FirstName"] = data.get("first_name")
+            if "last_name" in data:
+                updated_fields["LastName"] = data.get("last_name")
+            if "date_of_joining" in data:
+                updated_fields["DateOfJoining"] = data.get("date_of_joining")
+            if "address" in data:
+                updated_fields["Address"] = data.get("address")
+            if "gender" in data:
+                updated_fields["Gender"] = data.get("gender")
+            if "age" in data:
+                updated_fields["Age"] = data.get("age")
+            if "marital_status" in data:
+                updated_fields["MaritalStatus"] = data.get("marital_status")
+            if "interests" in data:
+                updated_fields["Interests"] = data.get("interests")
+
+            # Only include fields that are passed in the request
+            if updated_fields:
+                update_body = {
+                    "doc": updated_fields
+                }
+                print("update_body", update_body)
+            else:
+                return JsonResponse({"error": "No fields to update"}, status=400)
+
+            # Update the employee record in Elasticsearch
+            response = es.update(index="employee_db", id=employee_id, body=update_body)
+            print("response", response)
+
+            updated_doc = es.get(index="employee_db", id=employee_id)
+
+            return JsonResponse({
+                "message": "Employee updated successfully",
+                "data": updated_doc["_source"]
+            }, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Invalid request method. Use PATCH."}, status=405)
 
 @csrf_exempt
 def filter_by_designations(request):
@@ -248,5 +316,70 @@ def filter_by_age(request):
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Invalid request method. Use GET."}, status=405)
+
+def filter_by_date_of_joining(request):
+    if request.method == 'GET':
+        
+        page = request.GET.get('page', 1) 
+        per_page = request.GET.get('per_page', 100) 
+        start = (int(page) - 1) * int(per_page)
+        start_date = request.GET.get('start_date', None)
+        end_date = request.GET.get('end_date', None)
+
+        
+        if not start_date or not end_date:
+            return JsonResponse({"error": "Both start_date and end_date parameters are required"}, status=400)
+
+        try:
+
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+
+            body = {
+                "from": start,
+                "size": per_page,
+                "query": {
+                    "range": {
+                        "DateOfJoining": {
+                            "gte": start_date,
+                            "lte": end_date
+                        }
+                    }
+                },
+                "sort": [
+                    {
+                        "DateOfJoining": {
+                            "order": "asc"
+                        }
+                    }
+                ]
+            }
+
+            
+            response = es.search(index="employee_db", body=body)
+
+          
+            employees = [hit["_source"] for hit in response['hits']['hits']]
+
+            
+            if not employees:
+                return JsonResponse({"message": "No employees found within the specified date range"}, status=404)
+
+            
+            return JsonResponse({
+               "data": employees,
+               "total": response['hits']['total']['value'],
+               "page": page,
+               "per_page": per_page
+            }, status=200)
+
+        except ValueError:
+            return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD for start_date and end_date."}, status=400)
+        
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
     else:
         return JsonResponse({"error": "Invalid request method. Use GET."}, status=405)
