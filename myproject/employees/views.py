@@ -383,3 +383,42 @@ def filter_by_date_of_joining(request):
 
     else:
         return JsonResponse({"error": "Invalid request method. Use GET."}, status=405)
+    
+def get_aggregations(request):
+    
+    query = {
+        "size": 0,
+        "aggs": {
+            "Designation": {
+                "terms": {
+                    "field": "Designation.keyword",
+                    "size": 25
+                }
+            },
+            "Gender": {
+                "terms": {
+                    "field": "Gender.keyword",
+                    "size": 25
+                }
+            },
+            "MaritalStatus": {
+                "terms": {
+                    "field": "MaritalStatus.keyword",
+                    "size": 25
+                }
+            }
+        }
+    }
+    print("q", query)
+
+    response = es.search(index='employee_db', body=query)
+
+    aggregations = response.get('aggregations', {})
+    print("des",aggregations["Designation"]["buckets"])
+
+
+    return JsonResponse({
+               "Designations": aggregations["Designation"]["buckets"],
+               "Genders": aggregations["Gender"]["buckets"],
+               "MaritalStatus": aggregations["MaritalStatus"]["buckets"],
+            }, status=200)
