@@ -111,5 +111,3 @@ The API includes error responses with appropriate HTTP status codes for invalid 
 - **Elasticsearch Configuration**: Ensure that the Elasticsearch server is properly configured and running.
 - **Data Validations**: Employee creation validates first and last names; other validations may be added as required.
 ```
-
-Feel free to adjust any specific wording or formatting to fit your project's style!
